@@ -9,6 +9,7 @@ import base64
 import io
 import json
 import re
+import time
 import urllib.error
 import urllib.request
 
@@ -77,30 +78,51 @@ def _text(resp):
     return "\n".join(p.get("text", "") for p in parts if isinstance(p, dict))
 
 
-def ask(key, prompt, image_paths, tries=3):
-    """(응답 텍스트, 사용한 모델) 반환. 전부 실패하면 예외."""
+# 일시적인 오류 — 같은 모델을 잠깐 뒤 다시 시도한다
+RETRY = (429, 500, 502, 503, 504)
+
+
+def ask(key, prompt, image_paths, tries=7):
+    """(응답 텍스트, 사용한 모델) 반환. 전부 실패하면 예외.
+
+    최신 flash 모델은 무료 등급에서 자주 붐빈다(503). 같은 모델을 두 번 더
+    시도해 보고, 그래도 안 되면 다음 후보(조금 낮은 버전·lite)로 넘어간다.
+    """
     parts = [{"text": prompt}]
     for p in image_paths[:3]:
         parts.append({"inline_data": {"mime_type": "image/jpeg",
                                       "data": base64.b64encode(_shrink(p)).decode()}})
     body = {"contents": [{"parts": parts}],
             "generationConfig": {"temperature": 0, "maxOutputTokens": 400}}
+
+    models = list_models(key)[:tries]
+    print("  · 후보 모델: %s" % ", ".join(models))
     last = None
-    for model in list_models(key)[:tries]:
-        try:
-            r = _post("%s/models/%s:generateContent?key=%s" % (BASE, model, key), body)
-            t = _text(r)
-            if t.strip():
-                return t, model
-            last = "빈 응답 (%s)" % model
-        except urllib.error.HTTPError as e:
-            detail = ""
+    for model in models:
+        for attempt in range(3):
             try:
-                detail = e.read().decode()[:200]
-            except Exception:
-                pass
-            last = "%s → HTTP %s %s" % (model, e.code, detail)
-        except Exception as e:
-            last = "%s → %s" % (model, e)
-        print("  · %s 실패, 다음 모델 시도" % model)
+                r = _post("%s/models/%s:generateContent?key=%s" % (BASE, model, key), body)
+                t = _text(r)
+                if t.strip():
+                    return t, model
+                last = "빈 응답 (%s)" % model
+                break
+            except urllib.error.HTTPError as e:
+                detail = ""
+                try:
+                    detail = e.read().decode()
+                except Exception:
+                    pass
+                short = re.sub(r"\s+", " ", detail)[:120]
+                last = "%s → HTTP %s %s" % (model, e.code, short)
+                if e.code in RETRY and attempt < 2:
+                    wait = 3 * (attempt + 1)
+                    print("  · %s HTTP %s — %d초 뒤 재시도" % (model, e.code, wait))
+                    time.sleep(wait)
+                    continue
+                break
+            except Exception as e:
+                last = "%s → %s" % (model, e)
+                break
+        print("  · %s 실패 → 다음 모델" % model)
     raise RuntimeError(last or "사용 가능한 모델 없음")
