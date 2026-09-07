@@ -15,8 +15,8 @@ import urllib.request
 
 BASE = "https://generativelanguage.googleapis.com/v1beta"
 FALLBACK = ["gemini-2.5-flash", "gemini-2.0-flash"]
-SKIP = ("embedding", "aqa", "tts", "imagen", "image-generation", "live",
-        "veo", "learnlm", "audio")
+SKIP = ("embedding", "aqa", "tts", "imagen", "-image", "live",
+        "veo", "learnlm", "audio", "robotics", "guard")   # -image = 이미지 생성용
 
 
 def _get(url, timeout=30):
