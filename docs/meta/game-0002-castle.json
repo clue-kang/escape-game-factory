@@ -1,0 +1,33 @@
+{
+ "slug": "game-0002-castle",
+ "title": "마법의 성",
+ "emoji": "🏰",
+ "issue": 2,
+ "seed": 559521737,
+ "how": "Gemini 사진 분석 (gemini-3.7-flash)",
+ "types": [
+  "balance",
+  "cards",
+  "seq",
+  "cond2",
+  "sudoku4",
+  "magic3",
+  "abc",
+  "cond3",
+  "twenty",
+  "newop"
+ ],
+ "answers": {
+  "1": "등불",
+  "2": "61",
+  "3": "11",
+  "4": "53",
+  "5": "4",
+  "6": "3",
+  "7": "13",
+  "8": "365",
+  "9": "82",
+  "10": "17"
+ },
+ "date": "2026-09-07"
+}
