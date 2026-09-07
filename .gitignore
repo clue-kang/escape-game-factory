@@ -1,0 +1,4 @@
+.work/
+issue.json
+__pycache__/
+*.pyc

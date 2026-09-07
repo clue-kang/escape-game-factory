@@ -1,0 +1,41 @@
+name: 🎮 방탈출 게임 만들기
+description: 문제집 사진을 올리면 방탈출 게임을 자동으로 만들어 드려요
+title: "게임 만들어 주세요"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        아래 칸에 **문제집 사진을 붙여넣기(또는 드래그)** 하고 제출하면 끝이에요.
+        1~2분 뒤 이 이슈에 게임 링크가 댓글로 달립니다.
+
+  - type: textarea
+    id: photos
+    attributes:
+      label: 문제집 사진
+      description: 여기에 사진을 붙여넣거나 끌어다 놓으세요 (여러 장 가능, 최대 5장 사용)
+      placeholder: 사진을 이 칸에 그냥 붙여넣으면 돼요
+    validations:
+      required: false
+
+  - type: dropdown
+    id: theme
+    attributes:
+      label: 테마
+      description: 고르지 않으면 랜덤으로 정해져요
+      options:
+        - 랜덤으로 골라 주세요
+        - jungle — 🌴 잃어버린 정글
+        - space — 🚀 우주 정거장 X
+        - sea — 🌊 심해 잠수함
+        - castle — 🏰 마법의 성
+        - canyon — 🌋 불의 협곡
+        - candy — 🍭 사탕 공장
+      default: 0
+
+  - type: textarea
+    id: note
+    attributes:
+      label: 남길 말 (선택)
+      description: 원하는 문제 유형이 있으면 적어 주세요 (예 - 마방진, 저울, 스도쿠)
+    validations:
+      required: false

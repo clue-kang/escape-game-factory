@@ -1,0 +1,108 @@
+name: 방탈출 게임 만들기
+
+on:
+  issues:
+    types: [opened, labeled]
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "랜덤 시드 (비우면 매번 다름)"
+        required: false
+      theme:
+        description: "테마 (jungle/space/sea/castle/canyon/candy, 비우면 랜덤)"
+        required: false
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: build-game
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 필요한 것 설치
+        run: |
+          python -m pip install --quiet --upgrade pip
+          python -m pip install --quiet pillow pytesseract
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-kor
+
+      - name: 이슈 내용 저장
+        env:
+          TITLE: ${{ github.event.issue.title }}
+          BODY: ${{ github.event.issue.body }}
+          NUM: ${{ github.event.issue.number }}
+          THEME: ${{ inputs.theme }}
+        run: |
+          python - <<'PY'
+          import json, os
+          n = os.environ.get("NUM") or "0"
+          body = os.environ.get("BODY") or ""
+          if os.environ.get("THEME"):
+              body += "\n" + os.environ["THEME"]
+          json.dump({"title": os.environ.get("TITLE") or "수동 실행",
+                     "body": body, "number": int(n)},
+                    open("issue.json", "w", encoding="utf-8"), ensure_ascii=False)
+          PY
+
+      - name: 게임 생성
+        id: build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python scripts/build_game.py --issue issue.json ${{ inputs.seed && format('--seed {0}', inputs.seed) || '' }}
+
+      - name: 저장소에 반영
+        run: |
+          git config user.name  "escape-game-bot"
+          git config user.email "actions@github.com"
+          git add docs
+          git diff --cached --quiet && echo "변경 없음" && exit 0
+          git commit -m "🎮 ${{ steps.build.outputs.emoji }} ${{ steps.build.outputs.title }} (#${{ github.event.issue.number }})"
+          git push
+
+      - name: 이슈에 댓글 달기
+        if: github.event_name == 'issues'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLUG: ${{ steps.build.outputs.slug }}
+          TITLE: ${{ steps.build.outputs.title }}
+          EMOJI: ${{ steps.build.outputs.emoji }}
+          HOW: ${{ steps.build.outputs.how }}
+        run: |
+          URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/games/${SLUG}.html"
+          cat > body.md <<EOF
+          ## ${EMOJI} 방탈출 게임이 완성됐어요!
+
+          ### 👉 [**${TITLE} 플레이하기**](${URL})
+
+          - 문제 유형 판별: **${HOW}**
+          - 사고력 문제 10개 · 실사 사진 · 정글/우주 사운드
+          - 폰이나 태블릿에서 링크를 눌러 바로 플레이할 수 있어요
+          - 정답은 게임 맨 아래 **부모님용 정답지** (확인 문제 \`17 × 13\` → \`221\`)
+
+          다른 문제로 다시 만들려면 새 이슈를 열거나, Actions 탭에서 **방탈출 게임 만들기 → Run workflow** 를 누르세요.
+
+          🎮 [전체 게임 목록](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/)
+          EOF
+          gh issue comment ${{ github.event.issue.number }} --body-file body.md
+
+      - name: 실패했을 때 알려주기
+        if: failure() && github.event_name == 'issues'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment ${{ github.event.issue.number }} \
+            --body "⚠️ 게임을 만들다가 실패했어요. [실행 기록](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})을 확인해 주세요."
