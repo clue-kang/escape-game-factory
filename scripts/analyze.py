@@ -50,14 +50,11 @@ def _parse(text):
 
 
 def _gemini(paths, key):
-    parts = [{"text": PROMPT}]
-    for p in paths[:3]:
-        parts.append({"inline_data": {"mime_type": "image/jpeg",
-                                      "data": base64.b64encode(open(p, "rb").read()).decode()}})
-    url = ("https://generativelanguage.googleapis.com/v1beta/models/"
-           "gemini-2.0-flash:generateContent?key=" + key)
-    r = _post(url, {"contents": [{"parts": parts}]}, {"Content-Type": "application/json"})
-    return _parse(r["candidates"][0]["content"]["parts"][0]["text"])
+    """모델은 gemini.py가 자동으로 고른다 (은퇴 대비)"""
+    from gemini import ask
+    text, model = ask(key, PROMPT, paths)
+    print("  · Gemini 모델: %s" % model)
+    return _parse(text), model
 
 
 def _claude(paths, key):
@@ -104,11 +101,14 @@ def detect(paths, issue_text=""):
     key = os.environ.get("GEMINI_API_KEY", "").strip()
     if key and paths:
         try:
-            t = _gemini(paths, key)
+            t, model = _gemini(paths, key)
             if t:
-                return t, "Gemini 사진 분석"
+                return t, "Gemini 사진 분석 (%s)" % model
+            print("  ! Gemini가 유형을 못 골랐습니다 — 다음 방법으로")
         except Exception as e:
             print("  ! Gemini 실패:", e)
+    elif key and not paths:
+        print("  · 사진이 없어 Gemini를 건너뜁니다")
     key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if key and paths:
         try:

@@ -49,8 +49,17 @@ AI는 "이 페이지엔 저울·마방진 유형이 있다"는 판별만 하고,
 | 5 | 랜덤 유형 | 없음 | — |
 
 **키를 하나도 넣지 않아도 게임은 항상 만들어집니다.** 3~5단계로 자동으로 내려갑니다.
-사진을 제대로 읽게 하고 싶으면 [Google AI Studio](https://aistudio.google.com/apikey)에서
-무료 키를 받아 `Settings → Secrets and variables → Actions` 에 `GEMINI_API_KEY` 로 넣으세요.
+
+### Gemini 키 붙이기 (선택, 무료)
+
+1. [Google AI Studio](https://aistudio.google.com/apikey) → **Create API key** (무료, 결제 등록 불필요)
+2. 이 저장소 → **Settings → Secrets and variables → Actions → New repository secret**
+3. 이름 `GEMINI_API_KEY`, 값에 받은 키를 붙여넣고 저장
+4. **Actions → Gemini 키 점검 → Run workflow** 로 확인 (요약에 결과가 뜹니다)
+
+모델 이름은 코드에 박아 두지 않았습니다. 계정에서 쓸 수 있는 모델 목록을 그때그때 받아
+비전이 되는 flash 계열 최신을 골라 쓰고, 실패하면 다음 후보로 넘어갑니다.
+**모델이 은퇴해도 코드를 고칠 필요가 없습니다.**
 
 ---
 
@@ -101,6 +110,8 @@ scripts/
   themes.py        테마 6종 + Pexels 사진 ID
   photos.py        사진 내려받기 · 자르기 · base64 내장
   analyze.py       사진 → 문제 유형 (Gemini/Claude/OCR/랜덤)
+  gemini.py        Gemini 호출 + 모델 자동 선택
+  check_gemini.py  키가 살아 있는지 점검
   template.html    게임 템플릿 (색·데이터만 갈아끼움)
 docs/
   index.html       게임 목록 (자동 갱신)
