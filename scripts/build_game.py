@@ -115,7 +115,8 @@ def build(issue, outdir):
                       "clear": z["clear"], "ph": "z%d" % i,
                       "amb": theme["amb"][i] if i < len(theme["amb"]) else "cave"})
 
-    slug = "game-%04d-%s" % (number, theme["key"]) if number else "demo-%s" % theme["key"]
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M")
+    slug = ("game-%04d-%s" % (number, theme["key"])) if number else ("manual-%s-%s" % (stamp, theme["key"]))
     stars = "★" * 5 + "☆"
     game = {
         "slug": slug,
