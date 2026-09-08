@@ -191,10 +191,10 @@ def build(issue, outdir):
     return meta
 
 
-def write_index(outdir):
-    idx = os.path.join(ROOT, "docs", "index.html")
+def write_index(docs):
+    idx = os.path.join(docs, "index.html")
     games = []
-    metadir = os.path.join(ROOT, "docs", "meta")
+    metadir = os.path.join(docs, "meta")
     if os.path.isdir(metadir):
         for f in sorted(os.listdir(metadir), reverse=True):
             if f.endswith(".json"):
@@ -231,7 +231,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--issue")
     ap.add_argument("--demo", action="store_true")
-    ap.add_argument("--out", default=os.path.join(ROOT, "docs", "games"))
+    ap.add_argument("--docs", default=os.path.join(ROOT, "docs"),
+                    help="게임 목록·메타를 쓸 폴더 (기본: 이 저장소의 docs)")
+    ap.add_argument("--out", help="게임 HTML 저장 폴더 (기본: <docs>/games)")
     ap.add_argument("--seed", type=int)
     ap.add_argument("--types", help="유형 직접 지정 (쉼표 구분, 분석 건너뜀)")
     a = ap.parse_args()
@@ -245,13 +247,14 @@ def main():
     if a.types:
         issue["types"] = [t.strip() for t in a.types.split(",") if t.strip()]
 
-    meta = build(issue, a.out)
+    outdir = a.out or os.path.join(a.docs, "games")
+    meta = build(issue, outdir)
 
-    md = os.path.join(ROOT, "docs", "meta")
+    md = os.path.join(a.docs, "meta")
     os.makedirs(md, exist_ok=True)
     json.dump(meta, open(os.path.join(md, meta["slug"] + ".json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=1)
-    write_index(a.out)
+    write_index(a.docs)
 
     gh = os.environ.get("GITHUB_OUTPUT")
     if gh:
