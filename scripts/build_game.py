@@ -91,7 +91,7 @@ def pick_theme(rng, text):
     return rng.choice(THEMES)
 
 
-def build(issue, outdir):
+def build(issue, outdir, prefix=""):
     title_in = (issue.get("title") or "").strip()
     body = issue.get("body") or ""
     number = issue.get("number") or 0
@@ -148,7 +148,11 @@ def build(issue, outdir):
                       "amb": theme["amb"][i] if i < len(theme["amb"]) else "cave"})
 
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M")
-    slug = ("game-%04d-%s" % (number, theme["key"])) if number else ("manual-%s-%s" % (stamp, theme["key"]))
+    tag = (prefix + "-") if prefix else ""
+    if number:
+        slug = "%sgame-%04d-%s" % (tag, number, theme["key"])
+    else:
+        slug = "%smanual-%s-%s" % (tag, stamp, theme["key"])
     stars = "★" * 5 + "☆"
     game = {
         "slug": slug,
@@ -236,6 +240,7 @@ def main():
     ap.add_argument("--out", help="게임 HTML 저장 폴더 (기본: <docs>/games)")
     ap.add_argument("--seed", type=int)
     ap.add_argument("--types", help="유형 직접 지정 (쉼표 구분, 분석 건너뜀)")
+    ap.add_argument("--prefix", default="", help="슬러그 앞에 붙일 말 (저장소 구분용)")
     a = ap.parse_args()
 
     if a.demo or not a.issue:
@@ -248,7 +253,7 @@ def main():
         issue["types"] = [t.strip() for t in a.types.split(",") if t.strip()]
 
     outdir = a.out or os.path.join(a.docs, "games")
-    meta = build(issue, outdir)
+    meta = build(issue, outdir, a.prefix)
 
     md = os.path.join(a.docs, "meta")
     os.makedirs(md, exist_ok=True)
