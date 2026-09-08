@@ -83,6 +83,29 @@ def _pick_token(sample_url):
     return ""
 
 
+IMG_EXT = (".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".bmp", ".gif")
+
+
+def local_images(paths, outdir):
+    """저장소에 올려 둔 사진 파일을 읽어 JPEG 로 통일한다.
+    첨부와 달리 체크아웃만 하면 바로 읽히므로 토큰이 필요 없다."""
+    if not paths:
+        return []
+    os.makedirs(outdir, exist_ok=True)
+    from PIL import Image
+    out = []
+    for i, src in enumerate(paths[:5]):
+        if not src.lower().endswith(IMG_EXT) or not os.path.isfile(src):
+            continue
+        try:
+            d = os.path.join(outdir, "local%d.jpg" % i)
+            Image.open(src).convert("RGB").save(d, "JPEG", quality=85)
+            out.append(d)
+        except Exception as e:
+            print("  ! 사진을 열 수 없음:", os.path.basename(src), e)
+    return out
+
+
 def download_images(body, outdir):
     os.makedirs(outdir, exist_ok=True)
     urls = []
@@ -137,8 +160,14 @@ def build(issue, outdir, prefix=""):
     rng = random.Random(seed)
 
     work = os.path.join(ROOT, ".work")
-    paths = download_images(body, work) if body else []
-    print("· 첨부 사진 %d장" % len(paths))
+    # 저장소에 파일로 올린 사진이 있으면 그것을 쓴다(토큰 불필요).
+    # 없을 때만 이슈 첨부를 내려받아 본다.
+    paths = local_images(issue.get("photos") or [], work)
+    if paths:
+        print("· 저장소 사진 %d장" % len(paths))
+    else:
+        paths = download_images(body, work) if body else []
+        print("· 첨부 사진 %d장" % len(paths))
 
     if issue.get("types"):
         types, how = issue["types"], "유형 직접 지정"
@@ -278,6 +307,8 @@ def main():
     ap.add_argument("--seed", type=int)
     ap.add_argument("--types", help="유형 직접 지정 (쉼표 구분, 분석 건너뜀)")
     ap.add_argument("--prefix", default="", help="슬러그 앞에 붙일 말 (저장소 구분용)")
+    ap.add_argument("--photos", nargs="*", default=[],
+                    help="저장소에 올린 사진 파일 경로 (이슈 첨부 대신 이걸 쓴다)")
     a = ap.parse_args()
 
     if a.demo or not a.issue:
@@ -288,6 +319,8 @@ def main():
         issue["seed"] = a.seed
     if a.types:
         issue["types"] = [t.strip() for t in a.types.split(",") if t.strip()]
+    if a.photos:
+        issue["photos"] = a.photos
 
     outdir = a.out or os.path.join(a.docs, "games")
     meta = build(issue, outdir, a.prefix)
