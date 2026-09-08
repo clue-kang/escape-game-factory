@@ -46,6 +46,43 @@ class _DropAuthOnRedirect(urllib.request.HTTPRedirectHandler):
 _OPENER = urllib.request.build_opener(_DropAuthOnRedirect)
 
 
+# 첨부 사진은 저장소가 아니라 user-attachments 라는 별도 공간에 있다.
+# Actions 기본 GITHUB_TOKEN 은 여기에 권한이 없어 익명과 똑같이 404 가 난다.
+# 그래서 쓸 수 있는 토큰을 순서대로 시험해 보고, 되는 것을 골라 쓴다.
+TOKEN_ENVS = ["ATTACH_TOKEN", "PUBLISH_TOKEN", "GH_USER_TOKEN", "GITHUB_TOKEN"]
+
+
+def _can_read(url, tok):
+    # HEAD 는 이 엔드포인트가 받아 주지 않는다. GET 으로 앞부분만 읽어 본다.
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0 (escape-game-factory)",
+        "Range": "bytes=0-1023",
+        **({"Authorization": "Bearer " + tok} if tok else {})})
+    try:
+        with _OPENER.open(req, timeout=30) as r:
+            return bool(r.read(64))
+    except Exception:
+        return False
+
+
+def _pick_token(sample_url):
+    if not sample_url:
+        return ""
+    seen = set()
+    for name in TOKEN_ENVS:
+        t = (os.environ.get(name) or "").strip()
+        if not t or t in seen:
+            continue
+        seen.add(t)
+        if _can_read(sample_url, t):
+            print("  · 첨부 사진 접근: %s 사용" % name)
+            return t
+        print("  · 첨부 사진 접근: %s 로는 안 됨" % name)
+    print("  ! 첨부 사진을 열 수 있는 토큰이 없습니다 "
+          "— 비공개 저장소 첨부는 사용자 토큰(ATTACH_TOKEN)이 필요합니다")
+    return ""
+
+
 def download_images(body, outdir):
     os.makedirs(outdir, exist_ok=True)
     urls = []
@@ -53,7 +90,7 @@ def download_images(body, outdir):
         u = m.group(1) or m.group(2)
         if u and u not in urls:
             urls.append(u)
-    tok = os.environ.get("GITHUB_TOKEN", "")
+    tok = _pick_token(urls[0] if urls else None)
     paths = []
     for i, u in enumerate(urls[:5]):
         try:
