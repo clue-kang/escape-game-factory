@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import generators as G          # noqa: E402
 import photos as P              # noqa: E402
 from analyze import detect      # noqa: E402
-from themes import THEMES, OBJECTS, by_key   # noqa: E402
+from themes import THEMES, OBJECTS, by_key, pick_photo   # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -197,10 +197,17 @@ def build(issue, outdir, prefix=""):
     # 사진
     ph = {}
     print("· 사진 내려받는 중…")
-    for k in ("hero", "end"):
-        ph[k] = P.safe(P.scene, theme["photos"][k], 860, 392, 68)
-    for k in ("z0", "z1", "z2", "z3"):
-        ph[k] = P.safe(P.scene, theme["photos"][k], 860, 300, 66)
+    used = set()
+    for k in ("hero", "end", "z0", "z1", "z2", "z3"):
+        # 한 게임 안에서 같은 사진이 두 번 나오지 않게 몇 번 다시 뽑아 본다
+        pid = pick_photo(theme, k, rng)
+        for _ in range(6):
+            if pid not in used:
+                break
+            pid = pick_photo(theme, k, rng)
+        used.add(pid)
+        H = 392 if k in ("hero", "end") else 300
+        ph[k] = P.safe(P.scene, pid, 860, H, 68 if H == 392 else 66)
     for q in qs:
         for pid in q.get("chImg", []) or []:
             key = "obj%d" % pid
