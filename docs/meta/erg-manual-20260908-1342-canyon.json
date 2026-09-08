@@ -1,0 +1,33 @@
+{
+ "slug": "erg-manual-20260908-1342-canyon",
+ "title": "불의 협곡",
+ "emoji": "🌋",
+ "issue": 0,
+ "seed": 948816764,
+ "how": "OCR 키워드 인식",
+ "types": [
+  "ancient",
+  "balance",
+  "cards",
+  "cond2",
+  "sudoku4",
+  "magic3",
+  "cond3",
+  "twenty",
+  "maxpath",
+  "newop"
+ ],
+ "answers": {
+  "1": "18",
+  "2": "기름 램프",
+  "3": "92",
+  "4": "47",
+  "5": "3",
+  "6": "7",
+  "7": "421",
+  "8": "14",
+  "9": "42",
+  "10": "13"
+ },
+ "date": "2026-09-08"
+}
