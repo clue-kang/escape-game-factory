@@ -1,0 +1,33 @@
+{
+ "slug": "erg-manual-20260908-1437-cinderella",
+ "title": "자정의 무도회",
+ "emoji": "🕛",
+ "issue": 0,
+ "seed": 1036080306,
+ "how": "Gemini 사진 분석 (gemini-3.8-flash)",
+ "types": [
+  "balance",
+  "seq",
+  "cards",
+  "cond2",
+  "abc",
+  "magic3",
+  "maxpath",
+  "cond3",
+  "twenty",
+  "newop"
+ ],
+ "answers": {
+  "1": "옛 시계",
+  "2": "16",
+  "3": "59",
+  "4": "83",
+  "5": "17",
+  "6": "4",
+  "7": "31",
+  "8": "831",
+  "9": "26",
+  "10": "19"
+ },
+ "date": "2026-09-08"
+}
