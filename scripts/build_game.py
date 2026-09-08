@@ -26,6 +26,24 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 IMG_RE = re.compile(r'!\[[^\]]*\]\((https?://[^)\s]+)\)|<img[^>]+src="(https?://[^"]+)"')
 ZONE_SPLIT = [3, 2, 2, 3]        # 구역별 문제 수 (합 10)
+TITLE_RE = re.compile(r"^\s*(?:제목|title)\s*[:：]\s*(.+)$", re.M | re.I)
+
+
+class _DropAuthOnRedirect(urllib.request.HTTPRedirectHandler):
+    """비공개 저장소 첨부는 서명 URL로 리다이렉트된다.
+    이때 Authorization 헤더를 같이 보내면 저장소 서버가 403으로 거절하므로 떼어낸다."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        r = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if r is not None:
+            for h in list(r.headers):
+                if h.lower() == "authorization":
+                    del r.headers[h]
+            r.unredirected_hdrs.pop("Authorization", None)
+        return r
+
+
+_OPENER = urllib.request.build_opener(_DropAuthOnRedirect)
 
 
 def download_images(body, outdir):
@@ -40,9 +58,9 @@ def download_images(body, outdir):
     for i, u in enumerate(urls[:5]):
         try:
             req = urllib.request.Request(u, headers={
-                "User-Agent": "escape-game-factory",
+                "User-Agent": "Mozilla/5.0 (escape-game-factory)",
                 **({"Authorization": "Bearer " + tok} if tok else {})})
-            with urllib.request.urlopen(req, timeout=45) as r:
+            with _OPENER.open(req, timeout=60) as r:
                 data = r.read()
             if len(data) < 2000:
                 continue
@@ -58,10 +76,18 @@ def download_images(body, outdir):
 
 
 def pick_theme(rng, text):
-    t = (text or "").lower()
+    """이슈 글에 테마 이름·키·한글 별칭이 있으면 그걸로, 없으면 랜덤"""
+    raw = text or ""
+    low = raw.lower()
+    hits = []
     for th in THEMES:
-        if th["key"] in t or th["name"] in (text or ""):
-            return th
+        for w in [th["key"], th["name"]] + th.get("alias", []):
+            if (w.lower() in low) if w.isascii() else (w in raw):
+                hits.append((len(w), th))
+                break
+    if hits:
+        hits.sort(key=lambda x: -x[0])      # 가장 긴(구체적인) 단어가 이김
+        return hits[0][1]
     return rng.choice(THEMES)
 
 
@@ -77,7 +103,10 @@ def build(issue, outdir):
     paths = download_images(body, work) if body else []
     print("· 첨부 사진 %d장" % len(paths))
 
-    types, how = detect(paths, title_in + "\n" + body)
+    if issue.get("types"):
+        types, how = issue["types"], "유형 직접 지정"
+    else:
+        types, how = detect(paths, title_in + "\n" + body)
     print("· 문제 유형 판별: %s → %s" % (how, types or "(없음)"))
 
     qs = G.make(rng, types, OBJECTS)
@@ -85,7 +114,10 @@ def build(issue, outdir):
         raise SystemExit("문제 생성 실패 (%d개)" % len(qs))
 
     theme = pick_theme(rng, title_in + " " + body)
-    print("· 테마: %s %s" % (theme["emoji"], theme["name"]))
+    m = TITLE_RE.search(body or "")
+    custom = (m.group(1).strip()[:40] if m else "")
+    print("· 테마: %s %s%s" % (theme["emoji"], theme["name"],
+                              (" (제목: %s)" % custom) if custom else ""))
 
     # 구역 배정
     zi, cnt = 0, 0
@@ -120,7 +152,7 @@ def build(issue, outdir):
     stars = "★" * 5 + "☆"
     game = {
         "slug": slug,
-        "title": theme["name"],
+        "title": custom or theme["name"],
         "emoji": theme["emoji"],
         "subtitle": "7살 & 초2 협동 · 사고력 문제 %d개" % len(qs),
         "stars": stars,
@@ -151,7 +183,7 @@ def build(issue, outdir):
     kb = os.path.getsize(dest) // 1024
     print("· 저장: %s (%d KB)" % (dest, kb))
 
-    meta = {"slug": slug, "title": theme["name"], "emoji": theme["emoji"],
+    meta = {"slug": slug, "title": custom or theme["name"], "emoji": theme["emoji"],
             "issue": number, "seed": seed, "how": how,
             "types": [q["type"] for q in qs],
             "answers": {str(q["id"]): q["ans"] for q in qs},
@@ -201,6 +233,7 @@ def main():
     ap.add_argument("--demo", action="store_true")
     ap.add_argument("--out", default=os.path.join(ROOT, "docs", "games"))
     ap.add_argument("--seed", type=int)
+    ap.add_argument("--types", help="유형 직접 지정 (쉼표 구분, 분석 건너뜀)")
     a = ap.parse_args()
 
     if a.demo or not a.issue:
@@ -209,6 +242,8 @@ def main():
         issue = json.load(open(a.issue, encoding="utf-8"))
     if a.seed:
         issue["seed"] = a.seed
+    if a.types:
+        issue["types"] = [t.strip() for t in a.types.split(",") if t.strip()]
 
     meta = build(issue, a.out)
 
